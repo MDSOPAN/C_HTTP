@@ -8,6 +8,8 @@ struct addrinfo hints;
 LPSOCKADDR sockaddr_ip;
 int iResult;
 WSADATA wsaData;
+unsigned char htbuff[20];
+FILE* ht;
 int main(){
     struct sockaddr_in service;
     iResult = WSAStartup(MAKEWORD(2, 2), &wsaData);
@@ -28,11 +30,14 @@ int main(){
         return 1;
     }
     service.sin_family = AF_INET;
-    service.sin_addr.s_addr = inet_addr("127.0.0.1");
+    struct sockaddr_in * sockaddr_ipv4 = (struct sockaddr_in *) result->ai_next->ai_addr;
+    
+
+    service.sin_addr.s_addr = inet_addr((char *)inet_ntoa(sockaddr_ipv4->sin_addr));
     service.sin_port = htons(8080);
     iResult = bind(s, (SOCKADDR *) &service, sizeof(service));
     if(iResult == SOCKET_ERROR){
-        printf("Binding Failed with err: %d",iResult);
+        printf("Binding Failed with err: %d",WSAGetLastError());
         WSACleanup();
         return 1;
     }
@@ -49,6 +54,11 @@ int main(){
         printf("listen failed with error: %d\n", iResult);
     }
     printf("listen Successful\n");
+    ht = fopen("index.html","rb");
+    iResult=fread(htbuff,sizeof(htbuff),ARRAYSIZE(htbuff),ht);
+    if(iResult == 0){
+        printf("Read Failed with err: %d",iResult);
+    }
     while(TRUE){
         ClientSocket = INVALID_SOCKET;
         ClientSocket = accept(s, NULL, NULL);
@@ -57,7 +67,21 @@ int main(){
             break;
         }
         printf("accept Successful\n");
-        send(s)
+        const char *headers = 
+        "HTTP/1.1 200 OK\r\n"
+        "Content-Type: text/html\r\n"
+        "Connection: close\r\n"
+        "\r\n";
+        iResult=send(ClientSocket,headers,(int)strlen(headers),0);
+        if(iResult == SOCKET_ERROR){
+            printf("send failed: %d\n", WSAGetLastError());
+            break;
+        }
+        iResult=send(ClientSocket,htbuff,(int)strlen(htbuff),0);
+        if(iResult == SOCKET_ERROR){
+            printf("send failed: %d\n", WSAGetLastError());
+            break;
+        }
 
     }
     WSACleanup();
